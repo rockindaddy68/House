@@ -1,0 +1,153 @@
+/**
+ * ==============================================
+ * GLOBALER APP-STORE (Zustand + localStorage)
+ * ==============================================
+ * Zentraler State-Management Store für die gesamte Anwendung
+ * - Verwendet Zustand für State-Management
+ * - Speichert alle Daten persistent im localStorage
+ * - Alle Änderungen werden automatisch gespeichert
+ */
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { Building, Tenant, UtilityPayment } from '../types/tenant';
+
+/**
+ * Interface für den App-State
+ * Definiert alle Datenstrukturen und verfügbaren Aktionen
+ */
+interface AppState {
+  // === GEBÄUDE ===
+  buildings: Building[];                                    // Array aller Gebäude
+  addBuilding: (building: Building) => void;                // Neues Gebäude hinzufügen
+  updateBuilding: (id: string, building: Partial<Building>) => void;  // Gebäude aktualisieren
+  deleteBuilding: (id: string) => void;                     // Gebäude löschen
+  
+  // === MIETER ===
+  tenants: Tenant[];                                        // Array aller Mieter
+  addTenant: (tenant: Tenant) => void;                      // Neuen Mieter hinzufügen
+  updateTenant: (id: string, tenant: Partial<Tenant>) => void;  // Mieter aktualisieren
+  deleteTenant: (id: string) => void;                       // Mieter löschen
+  
+  // === NEBENKOSTENZAHLUNGEN ===
+  utilityPayments: UtilityPayment[];                        // Array aller Nebenkostenzahlungen
+  addUtilityPayment: (payment: UtilityPayment) => void;     // Neue Zahlung hinzufügen
+  updateUtilityPayment: (id: string, payment: Partial<UtilityPayment>) => void;  // Zahlung aktualisieren
+  deleteUtilityPayment: (id: string) => void;               // Zahlung löschen
+  
+  // === HELPER-FUNKTIONEN ===
+  getBuildingTenants: (buildingId: string) => Tenant[];     // Alle Mieter eines Gebäudes abrufen
+  calculateBuildingStats: (buildingId: string) => { totalRent: number; occupiedUnits: number };  // Gebäude-Statistiken berechnen
+}
+
+/**
+ * Erstellt den Zustand Store mit Persistierung
+ * - persist() Middleware speichert automatisch in localStorage
+ * - Alle Änderungen bleiben nach Browser-Neustart erhalten
+ */
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      // === INITIAL STATE ===
+      // Leere Arrays beim ersten Start, werden aus localStorage geladen falls vorhanden
+      buildings: [],
+      tenants: [],
+      utilityPayments: [],
+      
+      // === GEBÄUDE-AKTIONEN ===
+      
+      /**
+       * Fügt ein neues Gebäude hinzu
+       * @param building - Das neue Gebäude-Objekt
+       */
+      addBuilding: (building) =>
+        set((state) => ({
+          buildings: [...state.buildings, building]
+        })),
+      
+      /**
+       * Aktualisiert ein bestehendes Gebäude
+       * @param id - ID des zu aktualisierenden Gebäudes
+       * @param updatedBuilding - Geänderte Felder (partial update)
+       */
+      updateBuilding: (id, updatedBuilding) =>
+        set((state) => ({
+          buildings: state.buildings.map((building) =>
+            building.id === id ? { ...building, ...updatedBuilding } : building
+          )
+        })),
+      
+      /**
+       * Löscht ein Gebäude und alle zugehörigen Mieter
+       * @param id - ID des zu löschenden Gebäudes
+       */
+      deleteBuilding: (id) =>
+        set((state) => ({
+          buildings: state.buildings.filter((building) => building.id !== id),
+          // Wichtig: Auch alle Mieter dieses Gebäudes werden entfernt
+          tenants: state.tenants.filter((tenant) => tenant.buildingId !== id)
+        })),
+      
+      // === MIETER-AKTIONEN ===
+      
+      /**
+       * Fügt einen neuen Mieter hinzu
+       * @param tenant - Das neue Mieter-Objekt
+       */
+      addTenant: (tenant) =>
+        set((state) => ({
+          tenants: [...state.tenants, tenant]
+
+        })),
+      
+      updateTenant: (id, updatedTenant) =>
+        set((state) => ({
+          tenants: state.tenants.map((tenant) =>
+            tenant.id === id ? { ...tenant, ...updatedTenant } : tenant
+          )
+        })),
+      
+      deleteTenant: (id) =>
+        set((state) => ({
+          tenants: state.tenants.filter((tenant) => tenant.id !== id)
+        })),
+      
+      // Utility Payment actions
+      addUtilityPayment: (payment) =>
+        set((state) => ({
+          utilityPayments: [...state.utilityPayments, payment]
+        })),
+      
+      updateUtilityPayment: (id, updatedPayment) =>
+        set((state) => ({
+          utilityPayments: state.utilityPayments.map((payment) =>
+            payment.id === id ? { ...payment, ...updatedPayment } : payment
+          )
+        })),
+      
+      deleteUtilityPayment: (id) =>
+        set((state) => ({
+          utilityPayments: state.utilityPayments.filter((payment) => payment.id !== id)
+        })),
+      
+      // Helper functions
+      getBuildingTenants: (buildingId) => {
+        const state = get();
+        return state.tenants.filter(tenant => tenant.buildingId === buildingId && tenant.active);
+      },
+      
+      calculateBuildingStats: (buildingId) => {
+        const state = get();
+        const buildingTenants = state.tenants.filter(tenant => tenant.buildingId === buildingId && tenant.active);
+        const totalRent = buildingTenants.reduce((sum, tenant) => sum + tenant.rentAmount, 0);
+        const occupiedUnits = buildingTenants.length;
+        
+        return { totalRent, occupiedUnits };
+      }
+    }),
+    {
+      name: 'house-app-storage', // Name für localStorage
+      storage: createJSONStorage(() => localStorage), // Persistiert in localStorage
+    }
+  )
+);
