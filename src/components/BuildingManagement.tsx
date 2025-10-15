@@ -4,8 +4,9 @@ import { Building } from '../types/tenant';
 import { useAppStore } from '../store/appStore';
 
 const BuildingManagement = () => {
-  const { buildings, tenants, addBuilding, deleteBuilding, getBuildingTenants, calculateBuildingStats } = useAppStore();
+  const { buildings, addBuilding, updateBuilding, deleteBuilding, calculateBuildingStats } = useAppStore();
   const [editingBuilding, setEditingBuilding] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Building>>({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [newBuilding, setNewBuilding] = useState<Partial<Building>>({
     name: '',
@@ -59,6 +60,32 @@ const BuildingManagement = () => {
   const handleDeleteBuilding = (buildingId: string) => {
     if (confirm('Sind Sie sicher, dass Sie dieses Gebäude löschen möchten?')) {
       deleteBuilding(buildingId);
+    }
+  };
+
+  // Edit-Funktionen
+  const startEditing = (building: Building) => {
+    setEditingBuilding(building.id);
+    setEditForm({
+      name: building.name,
+      address: building.address,
+      units: building.units,
+      yearBuilt: building.yearBuilt,
+      description: building.description,
+      color: building.color
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingBuilding(null);
+    setEditForm({});
+  };
+
+  const saveBuilding = () => {
+    if (editingBuilding && editForm.name && editForm.address) {
+      updateBuilding(editingBuilding, editForm);
+      setEditingBuilding(null);
+      setEditForm({});
     }
   };
 
@@ -184,58 +211,153 @@ const BuildingManagement = () => {
           {buildingsWithStats.map((building) => {
             const colorClass = colors.find(c => c.value === building.color)?.class || 'text-blue-600';
             
+            // Prüfen, ob dieses Gebäude bearbeitet wird
+            const isEditing = editingBuilding === building.id;
+            
             return (
               <div key={building.id} className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center">
-                      <Building2 className={`h-8 w-8 ${colorClass} mr-3`} />
+                  {isEditing ? (
+                    /* Bearbeitungsmodus */
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">Gebäude bearbeiten</h3>
+                      </div>
+                      
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">{building.name}</h3>
-                        <p className="text-sm text-gray-500">{building.occupiedUnits}/{building.units} Einheiten belegt</p>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gebäudename *</label>
+                        <input
+                          type="text"
+                          value={editForm.name || ''}
+                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Adresse *</label>
+                        <input
+                          type="text"
+                          value={editForm.address || ''}
+                          onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Einheiten *</label>
+                          <input
+                            type="number"
+                            value={editForm.units || 0}
+                            onChange={(e) => setEditForm({...editForm, units: parseInt(e.target.value) || 0})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            min="1"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Baujahr</label>
+                          <input
+                            type="number"
+                            value={editForm.yearBuilt || ''}
+                            onChange={(e) => setEditForm({...editForm, yearBuilt: e.target.value ? parseInt(e.target.value) : undefined})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Farbe</label>
+                        <select
+                          value={editForm.color || 'blue'}
+                          onChange={(e) => setEditForm({...editForm, color: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          {colors.map(color => (
+                            <option key={color.value} value={color.value}>{color.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                        <textarea
+                          value={editForm.description || ''}
+                          onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          rows={2}
+                        />
+                      </div>
+                      
+                      <div className="flex justify-end space-x-2 pt-2">
+                        <button
+                          onClick={cancelEditing}
+                          className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                        >
+                          Abbrechen
+                        </button>
+                        <button
+                          onClick={saveBuilding}
+                          className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                        >
+                          Speichern
+                        </button>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setEditingBuilding(building.id)}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteBuilding(building.id)}
-                        className="text-gray-400 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      {building.address}
-                    </div>
-                    {building.yearBuilt && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Baujahr: {building.yearBuilt}
+                  ) : (
+                    /* Anzeigemodus */
+                    <>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center">
+                          <Building2 className={`h-8 w-8 ${colorClass} mr-3`} />
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{building.name}</h3>
+                            <p className="text-sm text-gray-500">{building.occupiedUnits}/{building.units} Einheiten belegt</p>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => startEditing(building)}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBuilding(building.id)}
+                            className="text-gray-400 hover:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
-                    )}
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Home className="h-4 w-4 mr-2" />
-                      {building.units} Einheiten
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Users className="h-4 w-4 mr-2" />
-                      Monatl. Einnahmen: {formatCurrency(building.totalRent)}
-                    </div>
-                  </div>
-                  
-                  {building.description && (
-                    <div className="mt-4 p-3 bg-gray-50 rounded-md">
-                      <p className="text-sm text-gray-700">{building.description}</p>
-                    </div>
+                      
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          {building.address}
+                        </div>
+                        {building.yearBuilt && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            Baujahr: {building.yearBuilt}
+                          </div>
+                        )}
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Home className="h-4 w-4 mr-2" />
+                          {building.units} Einheiten
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Users className="h-4 w-4 mr-2" />
+                          Monatl. Einnahmen: {formatCurrency(building.totalRent)}
+                        </div>
+                      </div>
+                      
+                      {building.description && (
+                        <div className="mt-4 p-3 bg-gray-50 rounded-md">
+                          <p className="text-sm text-gray-700">{building.description}</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

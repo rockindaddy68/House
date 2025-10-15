@@ -143,15 +143,22 @@ export interface LandlordFinances {
   id: string;                    // Eindeutige ID des Finanz-Datensatzes
   year: number;                  // Steuerjahr (z.B. 2025)
   
-  // === EINNAHMEN ===
-  totalRentalIncome: number;     // Summe aller Mieteinnahmen (automatisch aus Mieter-Daten berechnet)
-  otherIncome: number;           // Sonstige Einnahmen (z.B. Nebenkostennachzahlungen, Stellplätze)
+  // === EIGENE EINKÜNFTE (für gemeinsame Veranlagung) ===
+  personalIncome: number;        // Eigenes Bruttoeinkommen (Gehalt, Rente, etc.) pro Jahr
+  capitalIncome: number;         // Einkünfte aus Kapitalvermögen (Zinsen, Dividenden, etc.)
+  otherPersonalIncome: number;   // Sonstige Einkünfte (z.B. selbstständige Tätigkeit, Gewerbebetrieb)
   
-  // === AUSGABEN ===
+  // === EINNAHMEN AUS VERMIETUNG ===
+  totalRentalIncome: number;     // Summe aller Mieteinnahmen (automatisch aus Mieter-Daten berechnet)
+  otherRentalIncome: number;     // Sonstige Mieteinnahmen (z.B. Nebenkostennachzahlungen, Stellplätze, Garagen)
+  
+  // === AUSGABEN (WERBUNGSKOSTEN) ===
   propertyTaxTotal: number;      // Grundsteuer gesamt (alle Gebäude)
   insuranceTotal: number;        // Versicherungen gesamt (Gebäude-, Haftpflicht-, etc.)
   repairTotal: number;           // Reparaturen & Instandhaltung gesamt
   administrationCosts: number;   // Verwaltungskosten (Hausverwaltung, Buchhaltung, etc.)
+  depreciation: number;          // AfA (Absetzung für Abnutzung) - 2% oder 2,5% des Gebäudewerts pro Jahr
+  financingCosts: number;        // Finanzierungskosten (Kreditzinsen, Bearbeitungsgebühren)
   
   // === STEUERBERATER ===
   taxAdvisorName?: string;       // Name des Steuerberaters (optional)
@@ -164,7 +171,9 @@ export interface LandlordFinances {
   
   // === BERECHNETE WERTE ===
   totalExpenses: number;         // Gesamtausgaben (automatisch berechnet)
-  netIncome: number;             // Nettoeinkommen = totalRentalIncome + otherIncome - totalExpenses
+  netRentalIncome: number;       // Nettoeinkommen aus Vermietung = totalRentalIncome + otherRentalIncome - totalExpenses
+  totalIncome: number;           // Gesamteinkommen = personalIncome + capitalIncome + otherPersonalIncome + netRentalIncome
+  estimatedTaxRate: number;      // Geschätzter Steuersatz basierend auf Gesamteinkommen (in Prozent)
 }
 
 /**

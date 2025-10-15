@@ -44,6 +44,19 @@ const LandlordFinances = () => {
     repairs: 0,          // Reparaturen
     administration: 0,   // Verwaltungskosten
     taxAdvisor: 0,       // Steuerberater
+    depreciation: 0,     // AfA (Absetzung für Abnutzung)
+    financingCosts: 0,   // Kreditzinsen
+  });
+
+  /**
+   * EIGENE EINKÜNFTE (für gemeinsame Veranlagung)
+   * Diese werden mit den Mieteinnahmen zusammen versteuert
+   */
+  const [personalFinances, setPersonalFinances] = useState({
+    personalIncome: 0,        // Gehalt, Rente, etc.
+    capitalIncome: 0,         // Zinsen, Dividenden
+    otherPersonalIncome: 0,   // Sonstige Einkünfte
+    otherRentalIncome: 0,     // Sonstige Mieteinnahmen (Stellplätze, Garagen, etc.)
   });
 
   /**
@@ -60,8 +73,21 @@ const LandlordFinances = () => {
 
   // BERECHNUNGEN
   const totalExpenses = Object.values(expenses).reduce((sum, val) => sum + val, 0);  // Summe aller Ausgaben
-  const netIncome = totalRentalIncome - totalExpenses;  // Nettoeinkommen
+  const netRentalIncome = totalRentalIncome + personalFinances.otherRentalIncome - totalExpenses;  // Nettoeinkommen aus Vermietung
+  const totalPersonalIncome = personalFinances.personalIncome + personalFinances.capitalIncome + personalFinances.otherPersonalIncome;  // Summe persönliche Einkünfte
+  const totalIncome = totalPersonalIncome + netRentalIncome;  // Gesamteinkommen (für Steuersatz)
   const totalTaxAdvance = taxAdvancePayments.reduce((sum, payment) => sum + payment.amount, 0);  // Summe Steuervorauszahlungen
+  
+  /**
+   * GESCHÄTZTER STEUERSATZ (vereinfacht)
+   * Basiert auf dem Gesamteinkommen und gibt eine grobe Orientierung
+   * In der Realität hängt der Steuersatz von vielen weiteren Faktoren ab
+   */
+  const estimatedTaxRate = totalIncome <= 10000 ? 0 :
+                          totalIncome <= 28000 ? 14 :
+                          totalIncome <= 55000 ? 24 :
+                          totalIncome <= 80000 ? 32 :
+                          totalIncome <= 150000 ? 38 : 42;
 
   return (
     <div className="min-h-screen bg-gray-50 py-6">
@@ -83,7 +109,8 @@ const LandlordFinances = () => {
                 onChange={(e) => setSelectedYear(Number(e.target.value))}
                 className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                {[currentYear - 1, currentYear, currentYear + 1].map(year => (
+                {/* Zeige Jahre von 5 Jahre zurück bis 2 Jahre in die Zukunft */}
+                {Array.from({ length: 8 }, (_, i) => currentYear - 5 + i).map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
               </select>
@@ -99,7 +126,7 @@ const LandlordFinances = () => {
               <div>
                 <p className="text-sm text-gray-600">Mieteinnahmen (Jahr)</p>
                 <p className="text-2xl font-bold text-green-600 mt-2">
-                  €{totalRentalIncome.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+                  €{(totalRentalIncome + personalFinances.otherRentalIncome).toLocaleString('de-DE', { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <TrendingUp className="h-8 w-8 text-green-600" />
@@ -119,16 +146,16 @@ const LandlordFinances = () => {
             </div>
           </div>
 
-          {/* Nettoeinkommen */}
+          {/* Nettoeinkommen aus Vermietung */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Nettoeinkommen</p>
-                <p className={`text-2xl font-bold mt-2 ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  €{netIncome.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+                <p className="text-sm text-gray-600">Netto Vermietung</p>
+                <p className={`text-2xl font-bold mt-2 ${netRentalIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  €{netRentalIncome.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
                 </p>
               </div>
-              <DollarSign className={`h-8 w-8 ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+              <Building2 className={`h-8 w-8 ${netRentalIncome >= 0 ? 'text-green-600' : 'text-red-600'}`} />
             </div>
           </div>
 
@@ -146,7 +173,116 @@ const LandlordFinances = () => {
           </div>
         </div>
 
+        {/* Neue Card: Gesamteinkommen & Steuersatz */}
+        <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg shadow-lg p-6 mb-8 text-white">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <p className="text-sm text-primary-100">Persönliche Einkünfte (Jahr)</p>
+              <p className="text-2xl font-bold mt-2">
+                €{totalPersonalIncome.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-primary-100 mt-1">Gehalt, Rente, Kapital, Sonstiges</p>
+            </div>
+            <div>
+              <p className="text-sm text-primary-100">Gesamteinkommen (inkl. Vermietung)</p>
+              <p className="text-3xl font-bold mt-2">
+                €{totalIncome.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-primary-100 mt-1">Grundlage für Steuerberechnung</p>
+            </div>
+            <div>
+              <p className="text-sm text-primary-100">Geschätzter Steuersatz</p>
+              <p className="text-3xl font-bold mt-2">
+                {estimatedTaxRate}%
+              </p>
+              <p className="text-xs text-primary-100 mt-1">Vereinfachte Schätzung (Grundtarif)</p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Eigene Einkünfte */}
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                <DollarSign className="h-6 w-6 text-primary-600 mr-2" />
+                Eigene Einkünfte (Gemeinsame Veranlagung)
+              </h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <div className="flex items-start">
+                  <AlertCircle className="h-5 w-5 text-blue-600 mr-2 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <strong>Wichtig:</strong> Diese Einkünfte werden zusammen mit den Mieteinnahmen versteuert 
+                    und bestimmen Ihren Steuersatz (Progression).
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Bruttoeinkommen (Gehalt, Rente, etc.) pro Jahr
+                </label>
+                <input
+                  type="number"
+                  value={personalFinances.personalIncome}
+                  onChange={(e) => setPersonalFinances({...personalFinances, personalIncome: Number(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="z.B. 45000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Kapitalerträge (Zinsen, Dividenden, etc.)
+                </label>
+                <input
+                  type="number"
+                  value={personalFinances.capitalIncome}
+                  onChange={(e) => setPersonalFinances({...personalFinances, capitalIncome: Number(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="z.B. 2500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sonstige Einkünfte (selbstständig, Gewerbe, etc.)
+                </label>
+                <input
+                  type="number"
+                  value={personalFinances.otherPersonalIncome}
+                  onChange={(e) => setPersonalFinances({...personalFinances, otherPersonalIncome: Number(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="z.B. 12000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sonstige Mieteinnahmen (Stellplätze, Garagen, etc.)
+                </label>
+                <input
+                  type="number"
+                  value={personalFinances.otherRentalIncome}
+                  onChange={(e) => setPersonalFinances({...personalFinances, otherRentalIncome: Number(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="z.B. 1200 (= 100€/Monat × 12)"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-gray-200">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Summe persönliche Einkünfte:</span>
+                  <span className="font-semibold text-gray-900">
+                    €{totalPersonalIncome.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Steuervorauszahlungen */}
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -241,6 +377,28 @@ const LandlordFinances = () => {
                     type="number"
                     value={expenses.administration}
                     onChange={(e) => setExpenses({...expenses, administration: Number(e.target.value)})}
+                    className="w-40 px-3 py-2 border border-gray-300 rounded text-right"
+                    placeholder="€ 0.00"
+                    step="0.01"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-gray-700">AfA (Abschreibung)</label>
+                  <input
+                    type="number"
+                    value={expenses.depreciation}
+                    onChange={(e) => setExpenses({...expenses, depreciation: Number(e.target.value)})}
+                    className="w-40 px-3 py-2 border border-gray-300 rounded text-right"
+                    placeholder="€ 0.00"
+                    step="0.01"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-gray-700">Kreditzinsen</label>
+                  <input
+                    type="number"
+                    value={expenses.financingCosts}
+                    onChange={(e) => setExpenses({...expenses, financingCosts: Number(e.target.value)})}
                     className="w-40 px-3 py-2 border border-gray-300 rounded text-right"
                     placeholder="€ 0.00"
                     step="0.01"
